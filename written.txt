@@ -1,3 +1,34 @@
 a.
+Adversarial sequence (SFML coordinates, so NW is the quadrant nearest the origin; leaf capacity
+1 for simplicity): insert p_k = (1.5 * 2^-k, 1.5 * 2^-k) for k = 1..n, i.e. (0.75, 0.75),
+(0.375, 0.375), (0.1875, 0.1875), ...
+Each p_k falls in the SE child of the depth-(k-1) node on the NW-NW-NW... path, and every later
+point falls in that node's NW child. So each insertion splits one level deeper, and the tree
+becomes a single chain of depth ~n (a list). With MAX_DEPTH = 8, the leftover points pile into
+one deep leaf's list instead, which is still a list.
+
+Constant time: query (0.9, 0.9). It only overlaps the root's SE child, a leaf holding just p_1.
+O(n): query (0, 0). It falls in the NW child at every level, so the query walks the whole chain.
+
 b.
+After 8 copies, the 9th causes a split, but identical points all go into the same child, which
+is immediately over capacity again. Splitting can never separate them. Without a depth limit
+this splits forever. With MAX_DEPTH, you get a chain of nodes whose other 3 children are empty,
+ending in one leaf holding every copy, so queries there are O(n).
+Fixes: cap the depth or minimum cell size and let leaves overflow there; don't split when it
+wouldn't separate anything (the primitives' bounding box has zero extent); or store each
+duplicate position once with a count or ID list.
+
 c.
+Quadtree cells are fixed to world coordinates, so a global transform changes which cell almost
+every object belongs to. Translation moves objects across cell boundaries, changes which objects
+straddle center lines, and can push objects outside the root bounds, so the tree must be rebuilt.
+A rotation like 13 degrees also breaks axis alignment: every AABB has to be recomputed (and gets
+looser), so it again needs a full rebuild. The only cheap alternative is to keep the tree in a
+local frame and inverse-transform the query instead. For rotations, though, that makes the query
+box non-axis-aligned (or forces a looser conservative box).
+
+Conclusion: quadtrees suit bounded, roughly uniform, mostly static scenes (level geometry, tile
+maps, mostly-sleeping objects), and they are cheap to rebuild from scratch. They suit scenes that
+move or transform globally, unbounded worlds, clustered or duplicate data, and large objects
+poorly. BVHs handle those better because they can be refit and transformed.
